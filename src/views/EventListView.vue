@@ -6,6 +6,7 @@ import EventService from '@/services/EventService'
 import type { AxiosResponse } from 'axios';
 import { useRouter } from 'vue-router'
 import NProgress from 'nprogress'
+import { onBeforeRouteUpdate } from 'vue-router';
 
 const events: Ref<Array<EventItem>> = ref([])
 
@@ -13,10 +14,7 @@ const router = useRouter()
 
 const totalEvent = ref<number>(0)
 
-const hasNextPage = computed(() => {
-  const totalPages = Math.ceil(totalEvent.value / 2)
-  return props.page.valueOf() < totalPages
-})
+
 const props = defineProps({
   page: {
     type: Number,
@@ -29,17 +27,28 @@ const props = defineProps({
   }
 })
 
-NProgress.start()
 EventService.getEvent(2, props.page).then((response: AxiosResponse<EventItem[]>) => {
   events.value = response.data
   totalEvent.value = response.headers['x-total-count']
 }).catch(() => {
   router.push({ name: 'NetworkError' })
-}).finally(() => {
-  NProgress.done()
 })
 
+onBeforeRouteUpdate((to, from, next) => {
+  const toPage = Number(to.query.page)
+  EventService.getEvent(2, toPage).then((response: AxiosResponse<EventItem[]>) => {
+    events.value = response.data
+    totalEvent.value = response.headers['x-total-count']
+    next()
+  }).catch(() => {
+    next({ name: 'NetworkError' })
+  })
+})
 
+const hasNextPage = computed(() => {
+  const totalPages = Math.ceil(totalEvent.value / 2)
+  return props.page.valueOf() < totalPages
+})
 
 </script> 
 
